@@ -1,0 +1,28 @@
+{
+  "./tests/image-0000.xml": {
+    "0.5": {
+      "mAP": 0.3850574712643678,
+      "classes": {
+        "support": {
+          "DefaultLine": 92,
+          "HeadingLine": 0
+        },
+        "found": {
+          "DefaultLine": 77,
+          "HeadingLine": 15
+        },
+        "precision": {
+          "DefaultLine": 0.7701149425287356,
+          "HeadingLine": 0.0
+        },
+        "recall": {
+          "DefaultLine": 0.7282608695652174,
+          "HeadingLine": 0
+        },
+        "average IoU": {
+          "DefaultLine": 0.8589206659127797
+        }
+      }
+    }
+  }
+}
