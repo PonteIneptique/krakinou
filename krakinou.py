@@ -97,15 +97,12 @@ def precision_recall_ap(ground_truths: List[Poly], predictions: List[Poly], iou_
     return mAP, precision, recall, support, preds, ious
 
 
-@click.command()
-@click.argument("ground-truth", nargs=-1, type=click.Path(file_okay=True, dir_okay=False))
-@click.option("--model", "-m", type=click.Path(file_okay=True, dir_okay=False), default=None)
-@click.option("--iou", "-t", multiple=True, type=float, default=(.5, ), help="Threshold for mAP")
-@click.option("--output", "-o", help="Output results to json",
-              type=click.Path(file_okay=True, dir_okay=False))
-@click.option("--verbose", "-v", help="Verbose", is_flag=True)
-@click.option("--device", "-d", help="Kraken device", default="cpu")
-def krakinou(ground_truth: List[str], model: str, iou: Tuple[float, ...], output: str, verbose: bool, device: str):
+def compute(
+        ground_truth: List[str],
+        model: Optional[str] = None,
+        iou: Tuple[float, ...] = (.5, ),
+        device: Optional[str] = "cpu"
+):
     results = {}
     if model:
         model = TorchVGSLModel.load_model(model)
@@ -136,12 +133,24 @@ def krakinou(ground_truth: List[str], model: str, iou: Tuple[float, ...], output
                     "precision": pre,
                     "recall": rec,
                     "average IoU": {
-                        label: (sum(iou_list)/len(iou_list) if iou_list else 0)
+                        label: (sum(iou_list) / len(iou_list) if iou_list else 0)
                         for label, iou_list in ious.items()
                     }
                 }
             }
+    return results
 
+
+@click.command()
+@click.argument("ground-truth", nargs=-1, type=click.Path(file_okay=True, dir_okay=False))
+@click.option("--model", "-m", type=click.Path(file_okay=True, dir_okay=False), default=None)
+@click.option("--iou", "-t", multiple=True, type=float, default=(.5, ), help="Threshold for mAP")
+@click.option("--output", "-o", help="Output results to json",
+              type=click.Path(file_okay=True, dir_okay=False))
+@click.option("--verbose", "-v", help="Verbose", is_flag=True)
+@click.option("--device", "-d", help="Kraken device", default="cpu")
+def krakinou(ground_truth: List[str], model: str, iou: Tuple[float, ...], output: str, verbose: bool, device: str):
+    results = compute(ground_truth, model=model, iou=iou, device=device)
     if verbose:
         for file in results:
             print(f"# Results for {file}\n")
