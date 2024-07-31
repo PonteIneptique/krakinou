@@ -20,7 +20,57 @@
           "HeadingLine": 0
         },
         "average IoU": {
-          "DefaultLine": 0.8589206659127797
+          "DefaultLine": 0.8571229888574105,
+          "HeadingLine": 0
+        }
+      }
+    }
+  },
+  "./tests/image-0088.xml": {
+    "0.5": {
+      "mAP": 0.7692307692307693,
+      "classes": {
+        "support": {
+          "DefaultLine": 49
+        },
+        "found": {
+          "DefaultLine": 46
+        },
+        "precision": {
+          "DefaultLine": 0.7692307692307693
+        },
+        "recall": {
+          "DefaultLine": 0.8163265306122449
+        },
+        "average IoU": {
+          "DefaultLine": 0.7376394857438853
+        }
+      }
+    }
+  },
+  "All": {
+    "0.5": {
+      "mAP": 0.38489208633093525,
+      "classes": {
+        "support": {
+          "DefaultLine": 141,
+          "HeadingLine": 0
+        },
+        "found": {
+          "DefaultLine": 123,
+          "HeadingLine": 15
+        },
+        "precision": {
+          "DefaultLine": 0.7697841726618705,
+          "HeadingLine": 0.0
+        },
+        "recall": {
+          "DefaultLine": 0.7588652482269503,
+          "HeadingLine": 0
+        },
+        "average IoU": {
+          "DefaultLine": 0.8124562587215124,
+          "HeadingLine": 0
         }
       }
     }

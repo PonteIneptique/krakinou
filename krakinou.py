@@ -1,5 +1,5 @@
 import json
-from collections import defaultdict
+from collections import defaultdict, Counter
 import dataclasses
 from logging import getLogger, CRITICAL
 from typing import Optional, List, Dict, Tuple
@@ -52,6 +52,7 @@ def precision_recall_ap(ground_truths: List[Poly], predictions: List[Poly], iou_
     ious: Dict[str, List[float]] = defaultdict(list)
     support: Dict[str, int] = {}
     preds: Dict[str, int] = {}
+    label_scores: Dict[str, Dict[str, int]] = {}
 
     for label in set(gt_by_label.keys()).union(pred_by_label.keys()):
         gt_polygons = gt_by_label[label]
@@ -91,10 +92,11 @@ def precision_recall_ap(ground_truths: List[Poly], predictions: List[Poly], iou_
         ap[label] = precision[label]  # Simplified AP calculation for a single threshold
         support[label] = len(gt_by_label[label])
         preds[label] = len(pred_by_label[label])
+        label_scores[label] = {"tp": tp, "fn": fn, "fp": fp}
 
     mAP = sum(ap.values()) / len(ap) if ap else 0
 
-    return mAP, precision, recall, support, preds, ious
+    return mAP, precision, recall, support, preds, ious, label_scores
 
 
 def compute(
@@ -103,12 +105,25 @@ def compute(
         iou: Tuple[float, ...] = (.5, ),
         device: Optional[str] = "cpu"
 ):
-    results = {}
+    results = defaultdict(dict)
+    global_scores = {
+        threshold: defaultdict(Counter)
+        for threshold in iou
+    }
+    global_sup = {
+        threshold: defaultdict(Counter)
+        for threshold in iou
+    }
+    global_ious = {
+        threshold: defaultdict(list)
+        for threshold in iou
+    }
     if model:
         model = TorchVGSLModel.load_model(model)
         model.eval()
     for file in ground_truth:
-        results[file] = {}
+        if file not in results:
+            results[file] = {}
         ground_truth = XMLPage(file)
         full_im = PIL.Image.open(str(ground_truth.imagename))
         prediction = segment(full_im, model=model, device=device)
@@ -123,7 +138,12 @@ def compute(
         ]
 
         for threshold in iou:
-            mAP, pre, rec, sup, prd, ious = precision_recall_ap(gt_polys, pr_polys, iou_threshold=threshold)
+            mAP, pre, rec, sup, prd, ious, raw = precision_recall_ap(gt_polys, pr_polys, iou_threshold=threshold)
+            for label in raw:
+                global_scores[threshold][label].update(raw[label])
+                global_ious[threshold][label].extend(ious[label])
+            global_sup[threshold]["sup"].update(sup)
+            global_sup[threshold]["prd"].update(prd)
 
             results[file][threshold] = {
                 "mAP": mAP,
@@ -138,6 +158,28 @@ def compute(
                     }
                 }
             }
+    for threshold in iou:
+        precision = {}
+        recall = {}
+        print(global_sup[threshold])
+        for label, raw in global_scores[threshold].items():
+            tp, fp, fn = raw["tp"], raw["fp"], raw["fn"],
+            precision[label] = tp / (tp + fp) if tp + fp > 0 else 0
+            recall[label] = tp / (tp + fn) if tp + fn > 0 else 0
+
+        results["All"][threshold] = {
+            "mAP": sum(precision.values()) / len(precision) if precision else 0,
+            "classes": {
+                "support": global_sup[threshold]["sup"],
+                "found": global_sup[threshold]["prd"],
+                "precision": precision,
+                "recall": recall,
+                "average IoU": {
+                    label: (sum(iou_list) / len(iou_list) if iou_list else 0)
+                    for label, iou_list in global_ious[threshold].items()
+                }
+            }
+        }
     return results
 
 
@@ -152,11 +194,13 @@ def compute(
 def krakinou(ground_truth: List[str], model: str, iou: Tuple[float, ...], output: str, verbose: bool, device: str):
     results = compute(ground_truth, model=model, iou=iou, device=device)
     if verbose:
-        for file in results:
+        for idx, file in enumerate(results):
+            if idx > 0:
+                print("\n\n")
             print(f"# Results for {file}\n")
             for threshold, scores in results[file].items():
-                print(f"## IoU Threshold: {threshold}")
-                print(f"mAP: {scores['mAP']:.2f}")
+                print(f"## IoU Threshold: {threshold}\n")
+                print(f"mAP: {scores['mAP']:.2f}\n")
                 columns = ["Label", *[el.capitalize() for el in scores["classes"].keys()]]
                 metrics = defaultdict(list)
                 for metric, values in scores["classes"].items():
